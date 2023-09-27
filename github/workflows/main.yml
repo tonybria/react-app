@@ -1,46 +1,56 @@
-name: React App Deployment # 
+name: Build & deploy
 
 on:
   push:
     branches:
       - master
+  
 
 jobs:
-  deploy-react-to-gh-pages:
+  build:
+    name: Build
     runs-on: ubuntu-latest
-    env:
-      EXAMPLE: example 
-
-    steps:
-      
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v2.1.5
-        with:
-          node-version: "v18.17.1"
-      
-      - name: Cache dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
     
-      - name: Install dependencies
-        run: npm i
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    
+    - name: Install Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: v18.17.1
+    
+    - name: Install NPM packages
+      run: npm ci
+    
+    - name: Build project
+      run: npm run build
+    
+    - name: Run tests
+      run: npm run test
 
-        
-      - name: Build
-        run: npm run build
+    - name: Upload production-ready build files
+      uses: actions/upload-artifact@v2
+      with:
+        name: production-files
+        path: ./build
+  
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: production-files
+        path: ./build
 
-        
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-            
-            github_token: ${{ secrets.GITHUB_TOKEN }}
-            publish_dir: ./build 
+    - name: Deploy to gh-pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./build
+
